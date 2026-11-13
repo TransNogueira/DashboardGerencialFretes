@@ -1,92 +1,99 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard Gerencial | Fretes</title>
-<!-- Biblioteca Chart.js para os gráficos -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<!-- Biblioteca SheetJS para leitura de arquivos Excel no navegador -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<!-- SDK do Supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Gerencial | Fretes</title>
+  <!-- Biblioteca Chart.js para os gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <div class="top">
-    <div>
-      <div class="eyebrow">Painel de gestão • Operação de transporte</div>
-      <h1>Dashboard Gerencial de Fretes</h1>
-      <div class="sub">Acompanhamento financeiro por motorista, período e composição dos fretes</div>
+
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-box">
+      <div class="eyebrow">Acesso Restrito • Transnogueira</div>
+      <h2>Autenticação do Painel</h2>
+      <p>Insira sua chave individual de acesso para carregar os dados da operação.</p>
+      <form id="authForm">
+        <input type="password" id="tokenInput" placeholder="Digite sua chave (ex: tn-dir-8841)" required autocomplete="off">
+        <button type="submit" class="primary" id="authBtn">Acessar Dashboard</button>
+      </form>
+      <div id="authError" class="auth-error"></div>
     </div>
-    <div class="tag">BASE CONSOLIDADA • AGREGADOS TERCEIROS</div>
   </div>
-</header>
-<main>
-<section class="filters">
-    <div class="field"><label>Data inicial</label><input type="date" id="start"></div>
-    <div class="field"><label>Data final</label><input type="date" id="end"></div>
-    <div class="field"><label>Motorista</label><select id="driver"><option value="">Todos os motoristas</option></select></div>
-    <div class="field"><label>Tipo de CT-e</label><select id="type"><option value="">Todos os tipos</option></select></div>
-    
-    <button class="primary" id="apply">Aplicar filtros</button>
-    <button class="secondary" id="reset">Limpar</button>
-    <button class="secondary" id="export">Exportar CSV</button>
 
-    <label class="secondary" style="cursor: pointer;">
-      Importar Planilhas
-      <input type="file" id="fileInput" accept=".xls, .xlsx" multiple style="display: none;" onchange="importarPlanilhasExcel(event)">
-    </label>
-  </section>
-
-<section class="kpis">
- <div class="card"><div class="kpi-label"><span class="dot" style="background:#2878d0"></span>Frete Cebrace</div><div class="kpi-value" id="kFreight">—</div><div class="kpi-note">Valor total faturado na base</div></div>
- <div class="card"><div class="kpi-label"><span class="dot" style="background:#e89a35"></span>Frete motorista</div><div class="kpi-value" id="kPay">—</div><div class="kpi-note">Total destinado aos motoristas</div></div>
- <div class="card"><div class="kpi-label"><span class="dot" style="background:#19a58c"></span>Enlonamento</div><div class="kpi-value" id="kTarp">—</div><div class="kpi-note">Custo total de enlonamento</div></div>
- <div class="card"><div class="kpi-label"><span class="dot" style="background:#142b4a"></span>Resultado estimado</div><div class="kpi-value" id="kResult">—</div><div class="kpi-note">Frete Cebrace − motorista − enlonamento</div></div>
- <div class="card"><div class="kpi-label"><span class="dot" style="background:#8b70c9"></span>Documentos</div><div class="kpi-value" id="kDocs">—</div><div class="kpi-note">Quantidade de registros / CT-es</div></div>
-</section>
-
-<section class="grid">
- <div class="card chart-card"><h3 class="chart-title">Fretes e custos por motorista</h3><div class="chart-sub">Comparativo dos valores acumulados conforme os filtros</div><div class="chart-wrap"><canvas id="driverChart"></canvas></div></div>
- <div class="card chart-card"><h3 class="chart-title">Composição financeira</h3><div class="chart-sub">Participação de cada componente no total</div><div class="chart-wrap"><canvas id="mixChart"></canvas></div></div>
-</section>
-
-<section class="grid">
- <div class="card chart-card"><h3 class="chart-title">Evolução mensal</h3><div class="chart-sub">Frete Cebrace, frete motorista e enlonamento por mês</div><div class="chart-wrap"><canvas id="monthChart"></canvas></div></div>
- <div class="card chart-card"><h3 class="chart-title">Ranking de resultado por motorista</h3><div class="chart-sub">Resultado estimado: receita menos frete do motorista e enlonamento</div><div class="chart-wrap"><canvas id="rankChart"></canvas></div></div>
-</section>
-
-<section class="card table-card">
-  <div class="table-head">
-    <div>
-      <h3 class="chart-title">Resumo por motorista</h3>
-      <div class="chart-sub" style="margin:4px 0 0">Valores consolidados no período selecionado</div>
+  <header>
+    <div class="top">
+      <div>
+        <div class="eyebrow">Painel de gestão • Operação de transporte</div>
+        <h1>Dashboard Gerencial de Fretes</h1>
+        <div class="sub">Acompanhamento financeiro por motorista, período e composição dos fretes</div>
+      </div>
+      <div class="tag">BASE CONSOLIDADA • AGREGADOS TERCEIROS</div>
+      <button class="secondary" id="logoutBtn" style="display:none;">Sair / Trocar Chave</button>
     </div>
-    <div class="kpi-note" id="rowCount"></div>
-  </div>
-  <div class="table-scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>Motorista</th>
-          <th class="num">Documentos</th>
-          <th class="num">Frete Cebrace</th>
-          <th class="num">Enlonamento</th>
-          <th class="num">Frete motorista</th>
-          <th class="num">Resultado estimado</th>
-          <th class="num">Margem</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </div>
-</section>
+  </header>
 
-<div class="foot">Fonte: Planilhas integradas • Aba “Agregados Terceiros” • Resultado estimado não considera outros custos operacionais.</div>
-</main>
+  <main>
+    <section class="filters">
+      <div class="field"><label>Data inicial</label><input type="date" id="start"></div>
+      <div class="field"><label>Data final</label><input type="date" id="end"></div>
+      <div class="field"><label>Motorista</label><select id="driver"><option value="">Todos os motoristas</option></select></div>
+      <div class="field"><label>Tipo de CT-e</label><select id="type"><option value="">Todos os tipos</option></select></div>
+      
+      <button class="primary" id="apply">Aplicar filtros</button>
+      <button class="secondary" id="reset">Limpar</button>
+      <button class="secondary" id="export">Exportar CSV</button>
+    </section>
 
-<script src="script.js"></script>
+    <section class="kpis">
+      <div class="card"><div class="kpi-label"><span class="dot" style="background:#2878d0"></span>Frete Cebrace</div><div class="kpi-value" id="kFreight">—</div><div class="kpi-note">Valor total faturado na base</div></div>
+      <div class="card"><div class="kpi-label"><span class="dot" style="background:#e89a35"></span>Frete motorista</div><div class="kpi-value" id="kPay">—</div><div class="kpi-note">Total destinado aos motoristas</div></div>
+      <div class="card"><div class="kpi-label"><span class="dot" style="background:#19a58c"></span>Enlonamento</div><div class="kpi-value" id="kTarp">—</div><div class="kpi-note">Custo total de enlonamento</div></div>
+      <div class="card"><div class="kpi-label"><span class="dot" style="background:#142b4a"></span>Resultado estimado</div><div class="kpi-value" id="kResult">—</div><div class="kpi-note">Frete Cebrace − motorista − enlonamento</div></div>
+      <div class="card"><div class="kpi-label"><span class="dot" style="background:#8b70c9"></span>Documentos</div><div class="kpi-value" id="kDocs">—</div><div class="kpi-note">Quantidade de registros / CT-es</div></div>
+    </section>
+
+    <section class="grid">
+      <div class="card chart-card"><h3 class="chart-title">Fretes e custos por motorista</h3><div class="chart-sub">Comparativo dos valores acumulados conforme os filtros</div><div class="chart-wrap"><canvas id="driverChart"></canvas></div></div>
+      <div class="card chart-card"><h3 class="chart-title">Composição financeira</h3><div class="chart-sub">Participação de cada componente no total</div><div class="chart-wrap"><canvas id="mixChart"></canvas></div></div>
+    </section>
+
+    <section class="grid">
+      <div class="card chart-card"><h3 class="chart-title">Evolução mensal</h3><div class="chart-sub">Frete Cebrace, frete motorista e enlonamento por mês</div><div class="chart-wrap"><canvas id="monthChart"></canvas></div></div>
+      <div class="card chart-card"><h3 class="chart-title">Ranking de resultado por motorista</h3><div class="chart-sub">Resultado estimado: receita menos frete do motorista e enlonamento</div><div class="chart-wrap"><canvas id="rankChart"></canvas></div></div>
+    </section>
+
+    <section class="card table-card">
+      <div class="table-head">
+        <div>
+          <h3 class="chart-title">Resumo por motorista</h3>
+          <div class="chart-sub" style="margin:4px 0 0">Valores consolidados no período selecionado</div>
+        </div>
+        <div class="kpi-note" id="rowCount"></div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Motorista</th>
+              <th class="num">Documentos</th>
+              <th class="num">Frete Cebrace</th>
+              <th class="num">Enlonamento</th>
+              <th class="num">Frete motorista</th>
+              <th class="num">Resultado estimado</th>
+              <th class="num">Margem</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="foot">Fonte: Planilhas integradas • Aba “Agregados Terceiros” • Resultado estimado não considera outros custos operacionais.</div>
+  </main>
+
+  <script src="script.js"></script>
 </body>
 </html>
